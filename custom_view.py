@@ -3,54 +3,53 @@ from tools import *
 import scipy
 import physio
 
-class EcgAndPeak:
-    name = 'ECG\nDetections'
+class ECG_Detections:
+    name = 'ECG_Detections'
     
-    def __init__(self, stream, peaks):
+    def __init__(self, stream, ecg_features):
         self.stream = stream
-        self.peaks = peaks
-    
+        self.ecg_features = ecg_features
+        
     def plot(self, ax, t0, t1):
-        times = self.stream.get_times()
+        sig, dates = self.stream.get_data(sel=slice(t0, t1), with_times=True, apply_gain=True)
         
-        i0 = np.searchsorted(times, np.datetime64(t0))
-        i1 = np.searchsorted(times, np.datetime64(t1))
-        
-        sig, times = self.stream.get_data(isel=slice(i0, i1), with_times=True, apply_gain=True)
-        
-        ind0 = np.searchsorted(self.peaks, i0)
-        ind1 = np.searchsorted(self.peaks, i1)
-        local_peaks = self.peaks[ind0:ind1] - i0
+        if not sig is None:
+            ecg_features = self.ecg_features
+            local_peaks = ecg_features[(ecg_features['peak_date'] > t0) & (ecg_features['peak_date'] < t1)]
 
-        ax.plot(times, sig, color='b')
-        ax.scatter(times[local_peaks], sig[local_peaks], color='m')
+            local_peak_dates = local_peaks['peak_date'].values
+            local_peak_inds = np.searchsorted(dates, local_peak_dates)
+
+            ax.plot(dates, sig, color='k')
+            ax.scatter(local_peak_dates, sig[local_peak_inds], color='m')
+        else:
+            ax.plot()
         
         
-class RespiAndCycles:
-    name = 'Resp\nDetections'
+class Resp_Detections:
+    name = 'Resp_Detections'
     
     def __init__(self, stream, resp_features):
         self.stream = stream
-        self.ind_insp = resp_features['inspi_index'].values
-        self.ind_exp = resp_features['expi_index'].values
+        self.resp_features = resp_features
         
     def plot(self, ax, t0, t1):
-        times = self.stream.get_times()
-        
-        i0 = np.searchsorted(times, np.datetime64(t0))
-        i1 = np.searchsorted(times, np.datetime64(t1))
-        
-        sig, times = self.stream.get_data(isel=slice(i0, i1), with_times=True, apply_gain=True)
+        sig, dates = self.stream.get_data(sel=slice(t0, t1), with_times=True, apply_gain=True)
         
         if not sig is None:
-            ind0 = np.searchsorted(self.ind_insp, i0)
-            ind1 = np.searchsorted(self.ind_insp, i1)
-            local_ind_insp = self.ind_insp[ind0:ind1] - i0
-            local_ind_exp = self.ind_exp[ind0:ind1] - i0
+            resp_features = self.resp_features
+            local_resp_features = resp_features[(resp_features['inspi_date'] > t0) & (resp_features['expi_date'] < t1)]
 
-            ax.plot(times, sig, color='b')
-            ax.scatter(times[local_ind_insp], sig[local_ind_insp], color='g')
-            ax.scatter(times[local_ind_exp], sig[local_ind_exp], color='r')
+            local_inspi_dates = local_resp_features['inspi_date'].values
+            local_expi_dates = local_resp_features['expi_date'].values
+            local_inspi_inds= np.searchsorted(dates, local_inspi_dates)
+            local_expi_inds = np.searchsorted(dates, local_expi_dates)
+
+            ax.plot(dates, sig, color='k')
+            ax.scatter(local_inspi_dates, sig[local_inspi_inds], color='g')
+            ax.scatter(local_expi_dates, sig[local_expi_inds], color='r')
+        else:
+            ax.plot()
 
 class Monopolar:
     name = 'Monopolar'
